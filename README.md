@@ -55,5 +55,11 @@ You're all set to run the project!
 Cubes serve as visual representations of anchors.
 The Hand Menu activates when the palm of your *Left Hand* is detected. You can:
   1) **Create a new Spatial Anchor**: a yellow cube will appear. You can move the cube to your desired location for anchor creation. If the anchor is successfully created, a Popup Dialog will appear with the associated AnchorID.
+
+![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOWVzZTE2djd3dTM0aXliNmh5OHhqb2RtbmFkdjN3ZXplb3lrMW4zYiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NM0sHHviDIdSybDg3U/giphy.gif)
+
   2) **Locate a Spatial Anchor**: the anchor with the associated ID is automatically located on startup. However, if it's not successfully located, you can select this option from the menu.
-  3) **Visually hide the Located Anchor**.
+
+![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcW03Y2plcjZkY2VzdWx2bzc5dGt5dWNhbW92cGg4a3d4eXJkN2piZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/CPBRXHIwhpnN3QlnBe/giphy.gif)
+
+  3) **Visually hide the Anchor**.
