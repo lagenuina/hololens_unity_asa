@@ -4,16 +4,19 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Unity.Robotics.ROSTCPConnector;
 using UnityEngine;
 using UnityEngine.XR;
 using Microsoft.MixedReality.Toolkit.UI;
+using RosMessageTypes.Std;
+using RosMessageTypes.Geometry;
 
 [RequireComponent(typeof(SpatialAnchorManager))]
 public class ASAScript : MonoBehaviour
 {
-    [SerializeField] private GameObject spatialAnchor;
+    [SerializeField] private ROSPublisher publisher;
 
-    [SerializeField] private GameObject locatedAnchor;
+    [SerializeField] private GameObject spatialAnchor, locatedAnchor;
 
     [SerializeField] 
     [Tooltip("Anchor ID to be located")]
@@ -22,6 +25,8 @@ public class ASAScript : MonoBehaviour
     [SerializeField]
     [Tooltip("Assign DialogSmall_192x96.prefab")]
     private GameObject dialogPrefab;
+
+    [SerializeField] private string topicname;
 
     /// <summary>
     /// Medium Dialog example prefab to display
@@ -51,9 +56,9 @@ public class ASAScript : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        ROSConnection.GetOrCreateInstance().RegisterPublisher<StringMsg>(topicname);
         _spatialAnchorManager = GetComponent<SpatialAnchorManager>();
-        //_spatialAnchorManager.LogDebug += (sender, args) => SendStringMessage($"ASA - Debug: {args.Message}");
-        _spatialAnchorManager.Error += (sender, args) => Debug.LogError($"ASA - Error: {args.ErrorMessage}");
+        _spatialAnchorManager.Error += (sender, args) => publisher.StringMessage(topicname, $"ASA - Error: {args.ErrorMessage}");
         _spatialAnchorManager.AnchorLocated += SpatialAnchorManager_AnchorLocated;
 
         LocateAnchor();
@@ -66,6 +71,7 @@ public class ASAScript : MonoBehaviour
 
     public void FindAnchor()
     {
+        publisher.StringMessage(topicname, "Locating Anchor...");
         LocateAnchor();
     }
 
@@ -86,7 +92,7 @@ public class ASAScript : MonoBehaviour
             float createProgress = _spatialAnchorManager.SessionStatus.RecommendedForCreateProgress;
         }
 
-        Debug.Log("ASA - Saving cloud anchor... ");
+        publisher.StringMessage(topicname, "ASA - Saving cloud anchor... ");
 
         try
         {
@@ -96,11 +102,11 @@ public class ASAScript : MonoBehaviour
             bool saveSucceeded = cloudSpatialAnchor != null;
             if (!saveSucceeded)
             {
-                Debug.LogError("ASA - Failed to save, but no exception was thrown.");
+                publisher.StringMessage(topicname, "ASA - Failed to save, but no exception was thrown.");
                 return;
             }
 
-            Debug.Log($"ASA - Saved cloud anchor with ID: {cloudSpatialAnchor.Identifier}");
+            publisher.StringMessage(topicname, $"ASA - Saved cloud anchor with ID: {cloudSpatialAnchor.Identifier}");
             _foundOrCreatedAnchorGameObjects.Add(spatialAnchor);
             _createdAnchorIDs.Add(cloudSpatialAnchor.Identifier);
             spatialAnchor.GetComponent<MeshRenderer>().material.color = Color.green;
@@ -110,7 +116,7 @@ public class ASAScript : MonoBehaviour
         }
         catch (Exception exception)
         {
-            Debug.Log("ASA - Failed to save anchor: " + exception);
+            publisher.StringMessage(topicname, "ASA - Failed to save anchor: " + exception);
             Debug.LogException(exception);
         }
 
@@ -128,7 +134,7 @@ public class ASAScript : MonoBehaviour
         anchorLocateCriteria.Identifiers = _createdAnchorIDs.ToArray();
         _spatialAnchorManager.Session.CreateWatcher(anchorLocateCriteria);
 
-        Debug.Log($"ASA - Watcher created!");
+        publisher.StringMessage(topicname, $"ASA - Watcher created!");
     }
 
     /// <summary>
@@ -138,7 +144,7 @@ public class ASAScript : MonoBehaviour
     /// <param name="args">Callback AnchorLocatedEventArgs</param>
     private void SpatialAnchorManager_AnchorLocated(object sender, AnchorLocatedEventArgs args)
     {
-        Debug.Log($"ASA - Anchor recognized as a possible anchor {args.Identifier} {args.Status}");
+        publisher.StringMessage(topicname, $"ASA - Anchor recognized as a possible anchor {args.Identifier} {args.Status}");
 
         if (args.Status == LocateAnchorStatus.Located)
         {
@@ -150,6 +156,7 @@ public class ASAScript : MonoBehaviour
 
                 // Retrieve the position and orientation of the found cloud anchor
                 Vector3 anchorPosition = cloudSpatialAnchor.GetPose().position;
+                Quaternion anchorOrientation = cloudSpatialAnchor.GetPose().rotation;
 
                 //Create GameObject
                 locatedAnchor.SetActive(true);
@@ -159,7 +166,7 @@ public class ASAScript : MonoBehaviour
                 // Link to Cloud Anchor
                 locatedAnchor.AddComponent<CloudNativeAnchor>().CloudToNative(cloudSpatialAnchor);
                 _foundOrCreatedAnchorGameObjects.Add(locatedAnchor);
-       
+
             });
         }
 
