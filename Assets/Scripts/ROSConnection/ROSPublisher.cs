@@ -1,8 +1,6 @@
 using System.Collections;
 using UnityEngine;
 using Unity.Robotics.ROSTCPConnector;
-using System.Collections;
-using System.Collections.Generic;
 using Microsoft.MixedReality.Toolkit.UI;
 using RosMessageTypes.Std;
 using RosMessageTypes.Geometry;

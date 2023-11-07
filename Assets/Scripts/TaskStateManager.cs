@@ -13,12 +13,14 @@ public class TaskStateManager : MonoBehaviour
 {
     [SerializeField] private ROSPublisher publisher;
     [SerializeField] private GameObject spatialAnchor, toolFrameObject;
-    private Vector3 vectorWorldFrame, desiredPosition;
+    private Vector3 vectorWorldFrame, desiredToolFrameASA, vectorToolFrame, toolFramePositionInitial;
     private bool moveFrame = false;
     public bool moveArm = false;
     private bool followEE = false;
-    public bool setTarget = false, settingTarget = false;
+    public bool setTarget = false, settingTarget = false, calibratingAnchor = false;
     private bool updatePosition = false;
+
+    [SerializeField] private Interactable toggleSwitchArm;
 
     //private string serviceName = "/my_gen3/request_pose";
 
@@ -43,37 +45,51 @@ public class TaskStateManager : MonoBehaviour
         //ROSConnection.GetOrCreateInstance().RegisterRosService<UpdatePositionRequest, UpdatePositionResponse>(serviceName);
         ROSConnection.GetOrCreateInstance().RegisterPublisher<PoseMsg>("/hologram_feedback/pose");
         ROSConnection.GetOrCreateInstance().RegisterPublisher<BoolMsg>("/my_gen3/teleoperation/state");
-        ROSConnection.GetOrCreateInstance().RegisterPublisher<StringMsg>("/debug");
+        // ROSConnection.GetOrCreateInstance().RegisterPublisher<StringMsg>("/debug");
+        ROSConnection.GetOrCreateInstance().RegisterPublisher<BoolMsg>("/setting_target");
+        ROSConnection.GetOrCreateInstance().RegisterPublisher<PointMsg>("/my_gen3/calibrate_anchor");
 
-        //ROSConnection.GetOrCreateInstance().Subscribe<BoolMsg>("/my_gen3/tracking", TrackingState);
         ROSConnection.GetOrCreateInstance().Subscribe<PointMsg>("/my_gen3/tf_toolframe", ToolFrameUpdate);
 
         // Get the TextToSpeech component from the GameObject
         textToSpeech = toolFrameObject.GetComponent<TextToSpeech>();
     }
 
-    void ToolFrameUpdate(PointMsg toolFramePos)
+    private Vector3 ConvertWorldASA(Vector3 positionVector, string ToFrame)
     {
+        Vector3 newPositionVector = Vector3.zero; // Initialize the vector
+
+        if (ToFrame == "ToASA")
+        {
+            positionVector -= spatialAnchor.transform.position;
+            newPositionVector = spatialAnchor.transform.InverseTransformDirection(positionVector);
+        }
+        else if (ToFrame == "ToWorld")
+        {
+            Vector3 vectorWorldFrame = spatialAnchor.transform.TransformDirection(positionVector);
+            newPositionVector = vectorWorldFrame + spatialAnchor.transform.position;
+        }
+
+        return newPositionVector;
+    }
+
+    void ToolFrameUpdate(PointMsg toolFramePos){
+
         //publisher.StringMessage("/debug", (new Vector3((float)toolFramePos.x, (float)toolFramePos.y, -(float)toolFramePos.z)).ToString());
-        Vector3 vectorToolFrame = new Vector3((float)toolFramePos.x, (float)toolFramePos.y, -(float)toolFramePos.z);
-        vectorWorldFrame = spatialAnchor.transform.TransformDirection(vectorToolFrame);
-        vectorWorldFrame += spatialAnchor.transform.position;
+        Vector3 vectorToolFrameASA = new Vector3((float)toolFramePos.x, (float)toolFramePos.y, -(float)toolFramePos.z);
+        Vector3 vectorToolFrameWorld = ConvertWorldASA(vectorToolFrameASA, "ToWorld");
 
         if (updatePosition)
         {
-            toolFrameObject.transform.position = vectorWorldFrame;
+            toolFrameObject.transform.position = vectorToolFrameWorld;
+            toolFramePositionInitial = vectorToolFrameASA;
             updatePosition = false;
         }
 
         if (followEE)
         {
-            toolFrameObject.transform.position = vectorWorldFrame;
+            toolFrameObject.transform.position = vectorToolFrameWorld;
         }
-
-        //if (setTarget)
-        //{
-        //    toolFrameObject.transform.position = vectorWorldFrame;
-        //}
     }
 
     //public void MoveToolFrame()
@@ -102,53 +118,97 @@ public class TaskStateManager : MonoBehaviour
 
     public void FollowEE()
     {
-        if (followEE)
-        {
-            followEE = false;
-        }
-        else
-        {
-            followEE = true;
-            Dialog.Open(DialogPrefab, DialogButtonType.OK, "Now tracking end-effector position.", "Press 'Follow EE' on the Hand Menu to disable.", true);
-        }
+        // if (followEE)
+        // {
+        //     followEE = false;
+        // }
+        // else
+        // {
+        //     setTarget = false;
+        //     moveArm = false;
+        //     followEE = true;
+        //     Dialog.Open(DialogPrefab, DialogButtonType.OK, "Now tracking end-effector position.", "Press 'Follow EE' on the Hand Menu to disable.", true);
+        // }
+
+        setTarget = false;
+        moveArm = false;
+        followEE = true;
+        Dialog.Open(DialogPrefab, DialogButtonType.OK, "Now tracking end-effector position.", "Press 'Follow EE' on the Hand Menu to disable.", true);
     }
+
     public void MoveArm()
     {
-        if (moveArm)
-        {
-            moveArm = false;
-            textToSpeech.StartSpeaking("Tracking off.");
-        }
-        else
-        {
-            moveArm = true;
-            Dialog.Open(DialogPrefab, DialogButtonType.OK, "", "Grab and move the hologram to manually move the end-effector.", true);
-            textToSpeech.StartSpeaking("Tracking on.");
-        }
+        // if (moveArm)
+        // {
+        //     moveArm = false;
+        //     textToSpeech.StartSpeaking("Tracking off.");
+        //     toggleSwitchArm.IsToggled = false;
+        // }
+        // else
+        // {
+        //     followEE = false;
+        //     setTarget = false;
+        //     moveArm = true;
+        //     Dialog.Open(DialogPrefab, DialogButtonType.OK, "", "Grab and move the hologram to manually move the end-effector.", true);
+        //     textToSpeech.StartSpeaking("Tracking on. Grab and move the sphere to move the robot arm.");
+
+        //     toggleSwitchArm.IsToggled = true;
+        // }
+        
+        followEE = false;
+        setTarget = false;
+        moveArm = true;
+        Dialog.Open(DialogPrefab, DialogButtonType.OK, "", "Grab and move the hologram to manually move the end-effector.", true);
+        textToSpeech.StartSpeaking("Tracking on. Grab and move the sphere to move the robot arm.");
+
+        toggleSwitchArm.IsToggled = true;
     }
+    
     public void SetTarget()
     {
-        if (setTarget)
-        {
-            setTarget = false;
-        }
-        else
-        {
-            setTarget = true;
-            Dialog.Open(DialogPrefab, DialogButtonType.OK, "Set target", "Place the sphere where you want the robotic arm to move.", true);
-            }
+        // if (setTarget)
+        // {
+        //     setTarget = false;
+        //     toggleSwitchArm.IsToggled = false;
+        // }
+        // else
+        // {
+        //     followEE = false;
+        //     moveArm = false;
+        //     setTarget = true;
+        //     Dialog.Open(DialogPrefab, DialogButtonType.OK, "Set target", "Place the sphere where you want the robotic arm to move.", true);
+        //     textToSpeech.StartSpeaking("Put the sphere where you want the robot arm to move.");
+
+        //     toggleSwitchArm.IsToggled = true;
+        // }
+
+        followEE = false;
+        moveArm = false;
+        setTarget = true;
+        Dialog.Open(DialogPrefab, DialogButtonType.OK, "Set target", "Place the sphere where you want the robotic arm to move.", true);
+        textToSpeech.StartSpeaking("Put the sphere where you want the robot arm to move.");
+
+        toggleSwitchArm.IsToggled = true;
     }
 
     public void SendTargetPosition()
     {
-        //publisher.Pose("/hologram_feedback/pose", desiredPosition, new Quaternion(0, 0, 0, 1));
-        settingTarget = false;
-        setTarget = false;
+        // publisher.StringMessage("/debug", calibratingAnchor.ToString());
+
+        if (calibratingAnchor){
+            UpdateAnchorPosition();
+            calibratingAnchor = false;
+        }
+        else{
+            settingTarget = false;
+            setTarget = false;
+        }
     }
 
     public void pressedTrackingBool()
     {
         moveFrame = true;
+        // toolFrameObject.SetActive(true);
         updatePosition = true;
     }
 
@@ -160,42 +220,49 @@ public class TaskStateManager : MonoBehaviour
         {
             settingTarget = true;
         }
+
+        // if (toggleSwitchArm.IsToggled){
+        //     toggleSwitchArm.IsToggled = false;
+        //     textToSpeech.StartSpeaking("Kinova arm manual control was disabled.");
+        //     // toolFrameObject.SetActive(false);
+        // }
     }
 
-    //public void ChangeTrackingState()
-    //{
-    //    if (tracking)
-    //    {
-    //        textToSpeech.StartSpeaking("Tracking off.");
-    //        tracking = false;
-    //    }
-    //    else
-    //    {
-    //        // Update tool frame position
-    //        MoveToolFrame();
+    public void ToggleArmControl(){
+        if (toggleSwitchArm.IsToggled){
+            textToSpeech.StartSpeaking("You can now control Kinova arm.");
+        }
+        else{
 
-    //        // Open Dialog and Speech
-    //        Dialog.Open(DialogPrefab, DialogButtonType.OK, "", "Grab and move the hologram to manually move the end-effector.", true);
-    //        textToSpeech.StartSpeaking("Tracking on.");
+            followEE = false;
+            moveArm = false;
+            setTarget = false;
+            textToSpeech.StartSpeaking("Kinova arm manual control was disabled.");
+            // toolFrameObject.SetActive(false);
+        }
+    }
 
-    //        // Start tracking
-    //        tracking = true;
-    //    }
-    //}
+    public void calibrateAnchor(){
+        calibratingAnchor = true;
+        updatePosition = true;
+    }
+
+    public void UpdateAnchorPosition(){
+
+        Vector3 anchorDifference = toolFramePositionInitial - desiredToolFrameASA;
+        publisher.Position("/my_gen3/calibrate_anchor", anchorDifference);
+    }
+
 
     // Update is called once per frame
     void Update()
     {
-        Vector3 positionWorldSpace = toolFrameObject.transform.position;
-        positionWorldSpace -= spatialAnchor.transform.position;
-        desiredPosition = spatialAnchor.transform.InverseTransformDirection(positionWorldSpace);
-        
+        desiredToolFrameASA = ConvertWorldASA(toolFrameObject.transform.position, "ToASA");
+
         bool trackingState = moveFrame;
         publisher.BoolMessage("/my_gen3/teleoperation/state", trackingState);
-
-        if (!settingTarget)
-        {
-            publisher.Pose("/hologram_feedback/pose", desiredPosition, new Quaternion(0, 0, 0, 1));
-        }
+        publisher.BoolMessage("/setting_target", settingTarget);
+        
+        publisher.Pose("/hologram_feedback/pose", desiredToolFrameASA, new Quaternion(0, 0, 0, 1));
     }
 }

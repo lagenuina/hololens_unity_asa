@@ -10,6 +10,7 @@ public class ButtonsManager : MonoBehaviour
     [SerializeField] private ROSPublisher publisher;
     public TaskStateManager taskManager;
     [SerializeField] private GameObject vButton, switchButton;
+    [SerializeField] private GameObject arrows;
     [SerializeField] private GameObject spatialAnchor;
 
     // Start is called before the first frame update
@@ -20,6 +21,7 @@ public class ButtonsManager : MonoBehaviour
 
         ROSConnection.GetOrCreateInstance().RegisterPublisher<StringMsg>("/debug");
     }
+
     public void AppearRelativeTo()
     {
         // Position the objectToActivate in front of you
@@ -38,7 +40,7 @@ public class ButtonsManager : MonoBehaviour
 
         //publisher.StringMessage("/debug", taskManager.setTarget.ToString());
 
-        if (taskManager.setTarget)
+        if (taskManager.setTarget || taskManager.calibratingAnchor)
         {
             switchButton.SetActive(false);
             vButton.SetActive(true);
