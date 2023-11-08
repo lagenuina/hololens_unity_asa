@@ -118,18 +118,6 @@ public class TaskStateManager : MonoBehaviour
 
     public void FollowEE()
     {
-        // if (followEE)
-        // {
-        //     followEE = false;
-        // }
-        // else
-        // {
-        //     setTarget = false;
-        //     moveArm = false;
-        //     followEE = true;
-        //     Dialog.Open(DialogPrefab, DialogButtonType.OK, "Now tracking end-effector position.", "Press 'Follow EE' on the Hand Menu to disable.", true);
-        // }
-
         setTarget = false;
         moveArm = false;
         followEE = true;
@@ -138,23 +126,6 @@ public class TaskStateManager : MonoBehaviour
 
     public void MoveArm()
     {
-        // if (moveArm)
-        // {
-        //     moveArm = false;
-        //     textToSpeech.StartSpeaking("Tracking off.");
-        //     toggleSwitchArm.IsToggled = false;
-        // }
-        // else
-        // {
-        //     followEE = false;
-        //     setTarget = false;
-        //     moveArm = true;
-        //     Dialog.Open(DialogPrefab, DialogButtonType.OK, "", "Grab and move the hologram to manually move the end-effector.", true);
-        //     textToSpeech.StartSpeaking("Tracking on. Grab and move the sphere to move the robot arm.");
-
-        //     toggleSwitchArm.IsToggled = true;
-        // }
-        
         followEE = false;
         setTarget = false;
         moveArm = true;
@@ -166,22 +137,6 @@ public class TaskStateManager : MonoBehaviour
     
     public void SetTarget()
     {
-        // if (setTarget)
-        // {
-        //     setTarget = false;
-        //     toggleSwitchArm.IsToggled = false;
-        // }
-        // else
-        // {
-        //     followEE = false;
-        //     moveArm = false;
-        //     setTarget = true;
-        //     Dialog.Open(DialogPrefab, DialogButtonType.OK, "Set target", "Place the sphere where you want the robotic arm to move.", true);
-        //     textToSpeech.StartSpeaking("Put the sphere where you want the robot arm to move.");
-
-        //     toggleSwitchArm.IsToggled = true;
-        // }
-
         followEE = false;
         moveArm = false;
         setTarget = true;
@@ -193,8 +148,6 @@ public class TaskStateManager : MonoBehaviour
 
     public void SendTargetPosition()
     {
-        // publisher.StringMessage("/debug", calibratingAnchor.ToString());
-
         if (calibratingAnchor){
             UpdateAnchorPosition();
             calibratingAnchor = false;
@@ -208,7 +161,6 @@ public class TaskStateManager : MonoBehaviour
     public void pressedTrackingBool()
     {
         moveFrame = true;
-        // toolFrameObject.SetActive(true);
         updatePosition = true;
     }
 
@@ -220,12 +172,6 @@ public class TaskStateManager : MonoBehaviour
         {
             settingTarget = true;
         }
-
-        // if (toggleSwitchArm.IsToggled){
-        //     toggleSwitchArm.IsToggled = false;
-        //     textToSpeech.StartSpeaking("Kinova arm manual control was disabled.");
-        //     // toolFrameObject.SetActive(false);
-        // }
     }
 
     public void ToggleArmControl(){
@@ -238,7 +184,6 @@ public class TaskStateManager : MonoBehaviour
             moveArm = false;
             setTarget = false;
             textToSpeech.StartSpeaking("Kinova arm manual control was disabled.");
-            // toolFrameObject.SetActive(false);
         }
     }
 
