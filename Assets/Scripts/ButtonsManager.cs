@@ -8,18 +8,16 @@ using Microsoft.MixedReality.Toolkit.UI;
 public class ButtonsManager : MonoBehaviour
 {
     [SerializeField] private ROSPublisher publisher;
-    public TaskStateManager taskManager;
-    [SerializeField] private GameObject vButton, switchButton;
-    [SerializeField] private GameObject arrows;
+    [SerializeField] private TaskStateManager taskManager;
+    [SerializeField] private GameObject vButton;
     [SerializeField] private GameObject spatialAnchor;
+
+    private Interactable toggleInteractable;
 
     // Start is called before the first frame update
     void Start()
     {
         vButton.SetActive(false);
-        switchButton.SetActive(false);
-
-        ROSConnection.GetOrCreateInstance().RegisterPublisher<StringMsg>("/debug");
     }
 
     public void AppearRelativeTo()
@@ -38,28 +36,40 @@ public class ButtonsManager : MonoBehaviour
         Vector3 cameraEulerAngles = Camera.main.transform.rotation.eulerAngles;
         Quaternion desiredRotation = Quaternion.Euler(0, cameraEulerAngles.y, 0);
 
-        //publisher.StringMessage("/debug", taskManager.setTarget.ToString());
+        //if (taskManager.setTarget || taskManager.calibratingAnchor)
+        //{
+        //    toggleSwitchTracking.SetActive(false);
+        //    vButton.SetActive(true);
+        //    vButton.transform.position = desiredPositionWorld;
+        //    vButton.transform.rotation = desiredRotation;
+        //}
+        //else if (taskManager.moveArm)
+        //{
+        //    vButton.SetActive(false);
+        //    toggleSwitchTracking.SetActive(true);
+        //    toggleSwitchTracking.transform.position = desiredPositionWorld;
+        //    toggleSwitchTracking.transform.rotation = desiredRotation;
+        //}
+        //else{
+        //    vButton.SetActive(false);
+        //    toggleSwitchTracking.SetActive(false);
+        //}
 
         if (taskManager.setTarget || taskManager.calibratingAnchor)
         {
-            switchButton.SetActive(false);
             vButton.SetActive(true);
             vButton.transform.position = desiredPositionWorld;
             vButton.transform.rotation = desiredRotation;
         }
-        else if (taskManager.moveArm)
+        else
         {
             vButton.SetActive(false);
-            switchButton.SetActive(true);
-            switchButton.transform.position = desiredPositionWorld;
-            switchButton.transform.rotation = desiredRotation;
         }
-  
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+       
     }
 }

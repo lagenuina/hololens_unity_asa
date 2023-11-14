@@ -13,20 +13,14 @@ public class TaskStateManager : MonoBehaviour
 {
     [SerializeField] private ROSPublisher publisher;
     [SerializeField] private GameObject spatialAnchor, toolFrameObject;
-    private Vector3 vectorWorldFrame, desiredToolFrameASA, vectorToolFrame, toolFramePositionInitial;
-    private bool moveFrame = false;
-    public bool moveArm = false;
-    private bool followEE = false;
-    public bool setTarget = false, settingTarget = false, calibratingAnchor = false;
-    private bool updatePosition = false;
-
+    [SerializeField] private bool moveArm = false, settingTarget = false;
+    public bool isTracking = false, setTarget = false, calibratingAnchor = false;
     [SerializeField] private Interactable toggleSwitchArm;
 
-    //private string serviceName = "/my_gen3/request_pose";
-
-    //float awaitingResponseUntilTimestamp = -1;
+    private Vector3 vectorToolFrameASA, desiredToolFrameASA, vectorToolFrameWorld, toolFramePositionInitial;
 
     private TextToSpeech textToSpeech;
+    private Renderer toolFrameRenderer;
 
     [SerializeField]
     [Tooltip("Assign DialogSmall_192x96.prefab")]
@@ -39,175 +33,167 @@ public class TaskStateManager : MonoBehaviour
         set => dialogPrefab = value;
     }
 
-    // Start is called before the first frame update
     void Start()
     {
-        //ROSConnection.GetOrCreateInstance().RegisterRosService<UpdatePositionRequest, UpdatePositionResponse>(serviceName);
+        // Publishers
         ROSConnection.GetOrCreateInstance().RegisterPublisher<PoseMsg>("/hologram_feedback/pose");
-        ROSConnection.GetOrCreateInstance().RegisterPublisher<BoolMsg>("/my_gen3/teleoperation/state");
-        // ROSConnection.GetOrCreateInstance().RegisterPublisher<StringMsg>("/debug");
-        ROSConnection.GetOrCreateInstance().RegisterPublisher<BoolMsg>("/setting_target");
+        ROSConnection.GetOrCreateInstance().RegisterPublisher<BoolMsg>("/my_gen3/teleoperation/tracking");
         ROSConnection.GetOrCreateInstance().RegisterPublisher<PointMsg>("/my_gen3/calibrate_anchor");
 
+        // Subscribers
         ROSConnection.GetOrCreateInstance().Subscribe<PointMsg>("/my_gen3/tf_toolframe", ToolFrameUpdate);
 
-        // Get the TextToSpeech component from the GameObject
+        // Get TextToSpeech and Renderer components of the sphere
         textToSpeech = toolFrameObject.GetComponent<TextToSpeech>();
+        toolFrameRenderer = toolFrameObject.GetComponent<Renderer>();
     }
 
-    private Vector3 ConvertWorldASA(Vector3 positionVector, string ToFrame)
+    // Callback function for handling tool frame updates
+    void ToolFrameUpdate(PointMsg toolFramePos)
+    {
+        vectorToolFrameASA = new Vector3((float)toolFramePos.x, (float)toolFramePos.y, -(float)toolFramePos.z);
+        vectorToolFrameWorld = ConvertWorldASA(vectorToolFrameASA, "ToWorld");
+    }
+
+    // Convert position vectors between world and spatial anchor reference frames
+    private Vector3 ConvertWorldASA(Vector3 positionVector, string toFrame)
     {
         Vector3 newPositionVector = Vector3.zero; // Initialize the vector
 
-        if (ToFrame == "ToASA")
+        switch (toFrame)
         {
-            positionVector -= spatialAnchor.transform.position;
-            newPositionVector = spatialAnchor.transform.InverseTransformDirection(positionVector);
-        }
-        else if (ToFrame == "ToWorld")
-        {
-            Vector3 vectorWorldFrame = spatialAnchor.transform.TransformDirection(positionVector);
-            newPositionVector = vectorWorldFrame + spatialAnchor.transform.position;
+            case "ToASA":
+                newPositionVector = spatialAnchor.transform.InverseTransformDirection(positionVector - spatialAnchor.transform.position);
+                break;
+            case "ToWorld":
+                newPositionVector = spatialAnchor.transform.TransformDirection(positionVector) + spatialAnchor.transform.position;
+                break;
         }
 
         return newPositionVector;
     }
 
-    void ToolFrameUpdate(PointMsg toolFramePos){
-
-        //publisher.StringMessage("/debug", (new Vector3((float)toolFramePos.x, (float)toolFramePos.y, -(float)toolFramePos.z)).ToString());
-        Vector3 vectorToolFrameASA = new Vector3((float)toolFramePos.x, (float)toolFramePos.y, -(float)toolFramePos.z);
-        Vector3 vectorToolFrameWorld = ConvertWorldASA(vectorToolFrameASA, "ToWorld");
-
-        if (updatePosition)
-        {
-            toolFrameObject.transform.position = vectorToolFrameWorld;
-            toolFramePositionInitial = vectorToolFrameASA;
-            updatePosition = false;
-        }
-
-        if (followEE)
-        {
-            toolFrameObject.transform.position = vectorToolFrameWorld;
-        }
-    }
-
-    //public void MoveToolFrame()
-    //{
-    //    UpdatePositionRequest positionRequest = new UpdatePositionRequest(true);
-
-    //    // Send message to ROS and return the response
-    //    ROSConnection.GetOrCreateInstance().SendServiceMessage<UpdatePositionResponse>(serviceName, positionRequest, Callback_Service);
-    //    awaitingResponseUntilTimestamp = Time.time + 0.2f; // don't send again for 1 second, or until we receive a response
-    //}
-
-    //void Callback_Service(UpdatePositionResponse response)
-    //{
-    //    awaitingResponseUntilTimestamp = -1;
-
-    //    Vector3 vectorToolFrame = new Vector3((float)response.position.x, (float)response.position.y, -(float)response.position.z);
-
-    //    //publisher.StringMessage("/debug", vectorToolFrame.ToString());
-
-    //    // Convert the local position of the tool frame (with respect to the spatial anchor) to global
-    //    vectorWorldFrame = spatialAnchor.transform.TransformDirection(vectorToolFrame);
-    //    vectorWorldFrame += spatialAnchor.transform.position;
-
-    //    toolFrameObject.transform.position = vectorWorldFrame;
-    //}
-
-    public void FollowEE()
+    private void ActivateControl(bool isMoveArm, string startSpeakingMessage)
     {
-        setTarget = false;
-        moveArm = false;
-        followEE = true;
-        Dialog.Open(DialogPrefab, DialogButtonType.OK, "Now tracking end-effector position.", "Press 'Follow EE' on the Hand Menu to disable.", true);
+        toolFrameRenderer.enabled = true;
+
+        if (!isTracking)
+        {
+            string dialogTitle = isMoveArm ? string.Empty : "Set target";
+            string dialogContent = isMoveArm 
+                ? "Grab and move the hologram to manually move the end-effector." 
+                : "Place the sphere where you want the robotic arm to move.";
+
+            Dialog.Open(DialogPrefab, DialogButtonType.OK, dialogTitle, dialogContent, true);
+            textToSpeech.StartSpeaking($"Tracking on. {startSpeakingMessage}");
+
+            isTracking = true;
+        }
+        else
+        {
+            string controlType = isMoveArm 
+                ? "Move arm" 
+                : "Set target";
+
+            if ((isMoveArm && moveArm) || (!isMoveArm && setTarget))
+            {
+                textToSpeech.StartSpeaking($"{controlType} control is already active.");
+            }
+            else
+            {
+                textToSpeech.StartSpeaking($"Switched to {controlType} control.");
+            }
+        }
+
+        moveArm = isMoveArm;
+        setTarget = !isMoveArm;
+        settingTarget = !isMoveArm;
     }
 
     public void MoveArm()
     {
-        followEE = false;
-        setTarget = false;
-        moveArm = true;
-        Dialog.Open(DialogPrefab, DialogButtonType.OK, "", "Grab and move the hologram to manually move the end-effector.", true);
-        textToSpeech.StartSpeaking("Tracking on. Grab and move the sphere to move the robot arm.");
-
-        toggleSwitchArm.IsToggled = true;
+        ActivateControl(true, "Grab and move the sphere to move the robot arm.");
     }
-    
+
     public void SetTarget()
     {
-        followEE = false;
-        moveArm = false;
-        setTarget = true;
-        Dialog.Open(DialogPrefab, DialogButtonType.OK, "Set target", "Place the sphere where you want the robotic arm to move.", true);
-        textToSpeech.StartSpeaking("Put the sphere where you want the robot arm to move.");
-
-        toggleSwitchArm.IsToggled = true;
+        ActivateControl(false, "Put the sphere where you want the robot arm to move.");
     }
 
     public void SendTargetPosition()
     {
-        if (calibratingAnchor){
+        if (calibratingAnchor)
+        {
             UpdateAnchorPosition();
             calibratingAnchor = false;
+            textToSpeech.StartSpeaking("Spatial Anchor was calibrated.");
         }
-        else{
-            settingTarget = false;
-            setTarget = false;
-        }
-    }
-
-    public void pressedTrackingBool()
-    {
-        moveFrame = true;
-        updatePosition = true;
-    }
-
-    public void releasedTrackingBool()
-    {
-        moveFrame = false;
-
-        if (setTarget)
+        else
         {
-            settingTarget = true;
+            settingTarget = false;
         }
     }
 
-    public void ToggleArmControl(){
-        if (toggleSwitchArm.IsToggled){
-            textToSpeech.StartSpeaking("You can now control Kinova arm.");
-        }
-        else{
+    public void ToggleArmControl()
+    {
 
-            followEE = false;
+        if (toggleSwitchArm.IsToggled)
+        {
+            textToSpeech.StartSpeaking("You can now control the arm.");
+            isTracking = true;
+        }
+        else
+        {
             moveArm = false;
             setTarget = false;
-            textToSpeech.StartSpeaking("Kinova arm manual control was disabled.");
+            settingTarget = false;
+            textToSpeech.StartSpeaking("Manual control was disabled.");
+
+            toolFrameRenderer.enabled = false;
+            isTracking = false;
         }
     }
 
-    public void calibrateAnchor(){
+    public void calibrateAnchor()
+    {
         calibratingAnchor = true;
-        updatePosition = true;
+        toolFrameRenderer.enabled = true;
     }
 
-    public void UpdateAnchorPosition(){
-
+    public void UpdateAnchorPosition()
+    {
+        toolFramePositionInitial = vectorToolFrameASA;
         Vector3 anchorDifference = toolFramePositionInitial - desiredToolFrameASA;
+
         publisher.Position("/my_gen3/calibrate_anchor", anchorDifference);
     }
 
-
     // Update is called once per frame
     void Update()
-    {
+    {   
+
+        if (isTracking || calibratingAnchor)
+        {
+            toggleSwitchArm.IsToggled = true;
+        }
+        else
+        {
+            toggleSwitchArm.IsToggled = false;
+            toolFrameObject.transform.position = vectorToolFrameWorld;
+        }
+
         desiredToolFrameASA = ConvertWorldASA(toolFrameObject.transform.position, "ToASA");
 
-        bool trackingState = moveFrame;
-        publisher.BoolMessage("/my_gen3/teleoperation/state", trackingState);
-        publisher.BoolMessage("/setting_target", settingTarget);
+        if (!settingTarget)
+        {
+            publisher.Pose("/hologram_feedback/pose", desiredToolFrameASA, new Quaternion(0, 0, 0, 1));
+            
+            if (setTarget)
+            {
+                settingTarget = true;
+            }
+        }        
         
-        publisher.Pose("/hologram_feedback/pose", desiredToolFrameASA, new Quaternion(0, 0, 0, 1));
+        publisher.BoolMessage("/my_gen3/teleoperation/tracking", isTracking);
     }
 }

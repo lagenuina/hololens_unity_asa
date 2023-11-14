@@ -25,7 +25,7 @@ public class ArticulationJointController : MonoBehaviour
     [SerializeField] private float jointMaxSpeed = 1.0f; 
     
     private Vector3 positionBaseLinkWorld;
-    private Quaternion rotationBaseLinkWorld;
+    private Quaternion rotationBaseLinkWorld, rotationBaseLinkASA;
 
     // Articulation Bodies Presets
     // When joint position is set to be IGNORE_VAL, don't change it
@@ -53,7 +53,7 @@ public class ArticulationJointController : MonoBehaviour
     }
 
     void Start(){
-        // ROSConnection.GetOrCreateInstance().RegisterPublisher<StringMsg>("/debug");
+        ROSConnection.GetOrCreateInstance().RegisterPublisher<QuaternionMsg>("/unity_anchor_rotation");
         ROSConnection.GetOrCreateInstance().Subscribe<PoseMsg>("/my_gen3/tf_baselink", KinovaBaseLinkCallback);
         ROSConnection.GetOrCreateInstance().Subscribe<Float32MultiArrayMsg>("/my_gen3/joints", TargetJointsCallback);
         cube.GetComponent<Renderer>().enabled = false;
@@ -62,17 +62,16 @@ public class ArticulationJointController : MonoBehaviour
 
     void Update(){
         
-        // gameObject.transform.position = vectorWorldFrame;
+        publisher.RotationMessage("/unity_anchor_rotation", spatialAnchor);
+        
         cube.transform.position = positionBaseLinkWorld;
-        // cube.transform.rotation = rotationBaseLinkWorld;
+        cube.transform.rotation = rotationBaseLinkWorld;
         robotRoot.TeleportRoot(cube.transform.position, cube.transform.rotation);
 
         for (int i = 0; i < articulationChain.Length; ++i)
         {
             ArticulationBody joint = articulationChain[i];
             ArticulationDrive drive = joint.xDrive;
-            // Joint limit
-            // publisher.StringMessage("/debug", i.ToString());
 
             float target = targetArray[i] * Mathf.Rad2Deg;
             if (joint.twistLock == ArticulationDofLock.LimitedMotion)
@@ -91,9 +90,16 @@ public class ArticulationJointController : MonoBehaviour
         positionBaseLinkWorld = spatialAnchor.transform.TransformDirection(vectorBaseLinkASA);
         positionBaseLinkWorld += spatialAnchor.transform.position;
         
-        Quaternion rotationBaseLinkASA = new Quaternion((float)baseLinkPose.orientation.x, (float)baseLinkPose.orientation.y, (float)baseLinkPose.orientation.z, (float)baseLinkPose.orientation.w);
+        // publisher.StringMessage("/debug", "World");
+        // publisher.StringMessage("/debug", spatialAnchor.transform.rotation.ToString());
+                
+        rotationBaseLinkWorld = new Quaternion((float)baseLinkPose.orientation.x, (float)baseLinkPose.orientation.y, (float)baseLinkPose.orientation.z, (float)baseLinkPose.orientation.w);
 
-        Quaternion rotationBaseLinkWorld = spatialAnchor.transform.rotation * rotationBaseLinkASA;
+        // Quaternion worldRotation = spatialAnchor.transform.rotation;
+
+        // rotationBaseLinkWorld = worldRotation * localRotation;
+        // publisher.StringMessage("/debug", "Product1");
+        // publisher.StringMessage("/debug", rotationBaseLinkWorld.ToString());
     }
 
     void TargetJointsCallback(Float32MultiArrayMsg jointsArray){

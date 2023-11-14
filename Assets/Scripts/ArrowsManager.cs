@@ -5,6 +5,7 @@ using Unity.Robotics.ROSTCPConnector;
 using RosMessageTypes.Std;
 using RosMessageTypes.Geometry;
 using Microsoft.MixedReality.Toolkit.UI;
+using Microsoft.MixedReality.Toolkit.Audio;
 
 public class ArrowsManager : MonoBehaviour
 {
@@ -12,6 +13,7 @@ public class ArrowsManager : MonoBehaviour
     public ROSPublisher publisher;
     ROSConnection ros;
     [SerializeField] private Interactable toggleSwitchBase;
+    private TextToSpeech textToSpeech;
 
     // Start is called before the first frame update
     void Start()
@@ -19,6 +21,7 @@ public class ArrowsManager : MonoBehaviour
         // start the ROS connection
         ros = ROSConnection.GetOrCreateInstance();
         ros.RegisterPublisher<Int32Msg>("button_pressed");
+        textToSpeech = gameObject.GetComponent<TextToSpeech>();
     }
 
     void Update()
@@ -35,12 +38,15 @@ public class ArrowsManager : MonoBehaviour
             gameObject.transform.position = Camera.main.transform.position + Camera.main.transform.forward * 0.5f;
             Vector3 cameraEulerAngles = Camera.main.transform.rotation.eulerAngles;
             Quaternion desiredRotation = Quaternion.Euler(0, cameraEulerAngles.y, 0);
-            gameObject.transform.rotation = desiredRotation;   
+            gameObject.transform.rotation = desiredRotation;
+
+            textToSpeech.StartSpeaking("You can now control the mobile base.");
         }
         else {
+            textToSpeech.StartSpeaking("Mobile base control was disabled.");            
             gameObject.SetActive(false);
-        }
 
+        }
     }
 
     public void upPressed()
