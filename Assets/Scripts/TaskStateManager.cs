@@ -16,7 +16,7 @@ public class TaskStateManager : MonoBehaviour
     [SerializeField] private bool moveArm = false, settingTarget = false;
     public bool isTracking = false, setTarget = false, calibratingAnchor = false;
     [SerializeField] private Interactable toggleSwitchArm;
-
+    private int gripperState = 0; // gripper is open
     private Vector3 vectorToolFrameASA, desiredToolFrameASA, vectorToolFrameWorld, toolFramePositionInitial;
 
     private TextToSpeech textToSpeech;
@@ -39,6 +39,7 @@ public class TaskStateManager : MonoBehaviour
         ROSConnection.GetOrCreateInstance().RegisterPublisher<PoseMsg>("/hologram_feedback/pose");
         ROSConnection.GetOrCreateInstance().RegisterPublisher<BoolMsg>("/my_gen3/teleoperation/tracking");
         ROSConnection.GetOrCreateInstance().RegisterPublisher<PointMsg>("/my_gen3/calibrate_anchor");
+        ROSConnection.GetOrCreateInstance().RegisterPublisher<Int32Msg>("/my_gen3/teleoperation/gripper_state");
 
         // Subscribers
         ROSConnection.GetOrCreateInstance().Subscribe<PointMsg>("/my_gen3/tf_toolframe", ToolFrameUpdate);
@@ -168,6 +169,12 @@ public class TaskStateManager : MonoBehaviour
         publisher.Position("/my_gen3/calibrate_anchor", anchorDifference);
     }
 
+    public void ManageGripper()
+    {
+        // Switch gripper state (open/close)
+        gripperState = gripperState ^ 1;
+    }
+
     // Update is called once per frame
     void Update()
     {   
@@ -195,5 +202,6 @@ public class TaskStateManager : MonoBehaviour
         }        
         
         publisher.BoolMessage("/my_gen3/teleoperation/tracking", isTracking);
+        publisher.Int32Message("/my_gen3/teleoperation/gripper_state", gripperState);
     }
 }
