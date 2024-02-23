@@ -60,7 +60,9 @@ public class ObjectProperties : MonoBehaviour
 
     public void Transparent()
     {
-        // Turn off the mesh renderer
-        gameObject.GetComponent<Renderer>().enabled = false;
+        Renderer renderer = gameObject.GetComponent<Renderer>();
+
+        // Toggle the enabled state of the renderer
+        renderer.enabled = !renderer.enabled;
     }
 }

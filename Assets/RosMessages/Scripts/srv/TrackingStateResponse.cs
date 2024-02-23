@@ -8,39 +8,39 @@ using Unity.Robotics.ROSTCPConnector.MessageGeneration;
 namespace RosMessageTypes.Scripts
 {
     [Serializable]
-    public class UpdatePositionResponse : Message
+    public class TrackingStateResponse : Message
     {
-        public const string k_RosMessageName = "Scripts/UpdatePosition";
+        public const string k_RosMessageName = "Scripts/TrackingState";
         public override string RosMessageName => k_RosMessageName;
 
-        public Geometry.PointMsg position;
+        public bool response;
 
-        public UpdatePositionResponse()
+        public TrackingStateResponse()
         {
-            this.position = new Geometry.PointMsg();
+            this.response = false;
         }
 
-        public UpdatePositionResponse(Geometry.PointMsg position)
+        public TrackingStateResponse(bool response)
         {
-            this.position = position;
+            this.response = response;
         }
 
-        public static UpdatePositionResponse Deserialize(MessageDeserializer deserializer) => new UpdatePositionResponse(deserializer);
+        public static TrackingStateResponse Deserialize(MessageDeserializer deserializer) => new TrackingStateResponse(deserializer);
 
-        private UpdatePositionResponse(MessageDeserializer deserializer)
+        private TrackingStateResponse(MessageDeserializer deserializer)
         {
-            this.position = Geometry.PointMsg.Deserialize(deserializer);
+            deserializer.Read(out this.response);
         }
 
         public override void SerializeTo(MessageSerializer serializer)
         {
-            serializer.Write(this.position);
+            serializer.Write(this.response);
         }
 
         public override string ToString()
         {
-            return "UpdatePositionResponse: " +
-            "\nposition: " + position.ToString();
+            return "TrackingStateResponse: " +
+            "\nresponse: " + response.ToString();
         }
 
 #if UNITY_EDITOR

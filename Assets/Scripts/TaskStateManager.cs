@@ -18,6 +18,7 @@ public class TaskStateManager : MonoBehaviour
     [SerializeField] private Interactable toggleSwitchArm;
     private int gripperState = 0; // gripper is open
     private Vector3 vectorToolFrameASA, desiredToolFrameASA, vectorToolFrameWorld, toolFramePositionInitial;
+    float awaitingResponseUntilTimestamp = -1;
 
     private TextToSpeech textToSpeech;
     private Renderer toolFrameRenderer;
@@ -35,6 +36,9 @@ public class TaskStateManager : MonoBehaviour
 
     void Start()
     {
+        //Service
+        ROSConnection.GetOrCreateInstance().RegisterRosService<TrackingStateRequest, TrackingStateResponse>("/tracking_state_service");
+
         // Publishers
         ROSConnection.GetOrCreateInstance().RegisterPublisher<PoseMsg>("/hologram_feedback/pose");
         ROSConnection.GetOrCreateInstance().RegisterPublisher<BoolMsg>("/my_gen3/teleoperation/tracking");
@@ -109,6 +113,23 @@ public class TaskStateManager : MonoBehaviour
         moveArm = isMoveArm;
         setTarget = !isMoveArm;
         settingTarget = !isMoveArm;
+
+        ChangeTrackingState(isTracking);
+    }
+
+    // Call service to change tracking state
+    public void ChangeTrackingState(bool activate)
+    {
+        TrackingStateRequest trackingRequest = new TrackingStateRequest(activate);
+
+        // Send message to ROS and return the response
+        ROSConnection.GetOrCreateInstance().SendServiceMessage<TrackingStateResponse>("/tracking_state_service", trackingRequest, Callback_Service);
+        awaitingResponseUntilTimestamp = Time.time + 0.2f;
+    }
+
+    void Callback_Service(TrackingStateResponse response)
+    {
+        awaitingResponseUntilTimestamp = -1;
     }
 
     public void MoveArm()
@@ -153,6 +174,8 @@ public class TaskStateManager : MonoBehaviour
             toolFrameRenderer.enabled = false;
             isTracking = false;
         }
+
+        ChangeTrackingState(isTracking);
     }
 
     public void calibrateAnchor()
@@ -184,6 +207,8 @@ public class TaskStateManager : MonoBehaviour
             toggleSwitchArm.IsToggled = true;
         }
         else
+
+
         {
             toggleSwitchArm.IsToggled = false;
             toolFrameObject.transform.position = vectorToolFrameWorld;
@@ -199,8 +224,8 @@ public class TaskStateManager : MonoBehaviour
             {
                 settingTarget = true;
             }
-        }        
-        
+        }
+
         publisher.BoolMessage("/my_gen3/teleoperation/tracking", isTracking);
         publisher.Int32Message("/my_gen3/teleoperation/gripper_state", gripperState);
     }

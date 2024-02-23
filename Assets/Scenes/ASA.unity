@@ -3152,7 +3152,7 @@ MonoBehaviour:
   publisher: {fileID: 435353566}
   spatialAnchor: {fileID: 1024813818}
   locatedAnchor: {fileID: 472789821}
-  anchorID: 687d0663-d93e-423b-a2a5-16c9ff9b08f7
+  anchorID: 15923ab3-c0d9-4a02-9a04-512276ce1bcd
   dialogPrefab: {fileID: 2680377478557818543, guid: 1f36005ead59c5e4783c8aafc37d9ddb, type: 3}
   topicname: anchor_info
 --- !u!1 &1491206657

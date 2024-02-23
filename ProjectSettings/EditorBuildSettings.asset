@@ -5,12 +5,12 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/ASA.unity
     guid: 554b8393897f33f4c9df5587336d5d00
-  - enabled: 0
-    path: Assets/Scenes/ASA feat-camera.unity
-    guid: d2924de7cfcad864685218467bf16211
+  - enabled: 1
+    path: Assets/Scenes/ASA - feat camera.unity
+    guid: d6f77afa2093888449f302cc000a0572
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 7e6a2b14e9095e842b63e6c4eca81612, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 10bffd54c8966f44bbacec6fc7a6eb22, type: 2}

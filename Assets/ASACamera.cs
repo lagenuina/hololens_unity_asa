@@ -1,4 +1,3 @@
-
 using Microsoft.Azure.SpatialAnchors;
 using Microsoft.Azure.SpatialAnchors.Unity;
 using System;
@@ -13,21 +12,17 @@ using RosMessageTypes.Std;
 using RosMessageTypes.Geometry;
 
 [RequireComponent(typeof(SpatialAnchorManager))]
-public class ASAScript : MonoBehaviour
+public class ASACamera : MonoBehaviour
 {
-    [SerializeField] private ROSPublisher publisher;
+    [SerializeField] private GameObject CameraObject;
 
-    [SerializeField] private GameObject spatialAnchor, locatedAnchor;
-
-    [SerializeField] 
-    [Tooltip("Anchor ID to be located")]
+    [SerializeField]
+    [Tooltip("Anchor ID for camera to be located")]
     private string anchorID;
 
     [SerializeField]
     [Tooltip("Assign DialogSmall_192x96.prefab")]
     private GameObject dialogPrefab;
-
-    [SerializeField] private string topicname;
 
     /// <summary>
     /// Medium Dialog example prefab to display
@@ -52,19 +47,16 @@ public class ASAScript : MonoBehaviour
     /// Used to keep track of all the created Anchor IDs
     /// </summary>
     private List<String> _createdAnchorIDs = new List<String>();
-
+    
     // <Start>
     // Start is called before the first frame update
     void Start()
-    {
-        ROSConnection.GetOrCreateInstance().RegisterPublisher<StringMsg>(topicname);
+    {    
+
         _spatialAnchorManager = GetComponent<SpatialAnchorManager>();
-        _spatialAnchorManager.Error += (sender, args) => publisher.StringMessage(topicname, $"ASA - Error: {args.ErrorMessage}");
         _spatialAnchorManager.AnchorLocated += SpatialAnchorManager_AnchorLocated;
 
         LocateAnchor();
-
-        locatedAnchor.GetComponent<Renderer>().enabled = false;
     }
 
     public void OnClick()
@@ -74,7 +66,6 @@ public class ASAScript : MonoBehaviour
 
     public void FindAnchor()
     {
-        publisher.StringMessage(topicname, "Locating Anchor...");
         LocateAnchor();
     }
 
@@ -83,7 +74,7 @@ public class ASAScript : MonoBehaviour
         await _spatialAnchorManager.StartSessionAsync();
 
         //Add and configure ASA components
-        CloudNativeAnchor cloudNativeAnchor = spatialAnchor.AddComponent<CloudNativeAnchor>();
+        CloudNativeAnchor cloudNativeAnchor = CameraObject.AddComponent<CloudNativeAnchor>();
         await cloudNativeAnchor.NativeToCloud();
         CloudSpatialAnchor cloudSpatialAnchor = cloudNativeAnchor.CloudAnchor;
         cloudSpatialAnchor.Expiration = DateTimeOffset.Now.AddDays(3);
@@ -95,8 +86,6 @@ public class ASAScript : MonoBehaviour
             float createProgress = _spatialAnchorManager.SessionStatus.RecommendedForCreateProgress;
         }
 
-        publisher.StringMessage(topicname, "ASA - Saving cloud anchor... ");
-
         try
         {
             // Now that the cloud spatial anchor has been prepared, we can try the actual save here.
@@ -105,21 +94,18 @@ public class ASAScript : MonoBehaviour
             bool saveSucceeded = cloudSpatialAnchor != null;
             if (!saveSucceeded)
             {
-                publisher.StringMessage(topicname, "ASA - Failed to save, but no exception was thrown.");
                 return;
             }
 
-            publisher.StringMessage(topicname, $"ASA - Saved cloud anchor with ID: {cloudSpatialAnchor.Identifier}");
-            _foundOrCreatedAnchorGameObjects.Add(spatialAnchor);
+            _foundOrCreatedAnchorGameObjects.Add(CameraObject);
             _createdAnchorIDs.Add(cloudSpatialAnchor.Identifier);
-            spatialAnchor.GetComponent<MeshRenderer>().material.color = Color.green;
+            CameraObject.GetComponent<MeshRenderer>().material.color = Color.green;
 
             Dialog.Open(DialogPrefab, DialogButtonType.OK, "Anchor created", $"Anchor stored to cloud with ID: {cloudSpatialAnchor.Identifier}", true);
 
         }
         catch (Exception exception)
         {
-            publisher.StringMessage(topicname, "ASA - Failed to save anchor: " + exception);
             Debug.LogException(exception);
         }
 
@@ -136,8 +122,6 @@ public class ASAScript : MonoBehaviour
         AnchorLocateCriteria anchorLocateCriteria = new AnchorLocateCriteria();
         anchorLocateCriteria.Identifiers = _createdAnchorIDs.ToArray();
         _spatialAnchorManager.Session.CreateWatcher(anchorLocateCriteria);
-
-        publisher.StringMessage(topicname, $"ASA - Watcher created!");
     }
 
     /// <summary>
@@ -147,7 +131,6 @@ public class ASAScript : MonoBehaviour
     /// <param name="args">Callback AnchorLocatedEventArgs</param>
     private void SpatialAnchorManager_AnchorLocated(object sender, AnchorLocatedEventArgs args)
     {
-        publisher.StringMessage(topicname, $"ASA - Anchor recognized as a possible anchor {args.Identifier} {args.Status}");
 
         if (args.Status == LocateAnchorStatus.Located)
         {
@@ -161,14 +144,16 @@ public class ASAScript : MonoBehaviour
                 Vector3 anchorPosition = cloudSpatialAnchor.GetPose().position;
                 Quaternion anchorOrientation = cloudSpatialAnchor.GetPose().rotation;
 
+                CameraObject.transform.position = anchorPosition;
+                CameraObject.transform.rotation = anchorOrientation;
                 //Create GameObject
-                locatedAnchor.SetActive(true);
-                locatedAnchor.GetComponent<MeshRenderer>().material.shader = Shader.Find("Legacy Shaders/Diffuse");
-                locatedAnchor.GetComponent<MeshRenderer>().material.color = Color.blue;
+                //locatedAnchor.SetActive(true);
+                //locatedAnchor.GetComponent<MeshRenderer>().material.shader = Shader.Find("Legacy Shaders/Diffuse");
+                //CameraObject.GetComponent<MeshRenderer>().material.color = Color.blue;
 
                 // Link to Cloud Anchor
-                locatedAnchor.AddComponent<CloudNativeAnchor>().CloudToNative(cloudSpatialAnchor);
-                _foundOrCreatedAnchorGameObjects.Add(locatedAnchor);
+                CameraObject.AddComponent<CloudNativeAnchor>().CloudToNative(cloudSpatialAnchor);
+                _foundOrCreatedAnchorGameObjects.Add(CameraObject);
 
             });
         }
